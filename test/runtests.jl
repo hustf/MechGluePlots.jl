@@ -1,9 +1,10 @@
 include("test_func_defs.jl")
-include("test_apply_recipe.jl")
+#include("test_apply_recipe.jl")
 
 
 # plot one-dimensional 
 oneseries = [vr, vq, f_r_r, f_r_q]
+p = plot(vq)
 test_one_series(oneseries; seriestype = :scatter)
 test_one_series(oneseries; separate = false)
 
@@ -21,9 +22,10 @@ plot!(p, vq |>m, vq)
 # functions, vectors
 axisinput = [vr, vq, f_r_r, f_q_q, f_q_r, f_r_q]
 twoaxes = [(arg1, arg2) for arg1 in axisinput, arg2 in axisinput if is_series_applicable(arg1, arg2)]
+plot(twoaxes[2]; label = "vr-vq")
 p1 = test_two_axes(twoaxes)
 p2 = test_two_axes(twoaxes; separate = false)
-
+plot(twoaxes)
 # subplots
 
 
@@ -88,23 +90,19 @@ plot!(p3, vq, f_q_q.(vq))
 # A unitless plot with two series
 
 plot([(s1x, s1y), (s2x, s2y)])
-
-
 # A uniful plot with two series, different units
-plot(s1x∙m, s1y∙m)
-
 # NOT YET
 #RecipesBase.debug(true)
-#plot([(s1x∙m, s1y∙m), (s1x∙m, s1y∙m)])
+#plot([(s1x∙m, s1y∙m), (s2x∙s, s2y∙s)])
+
+plot(s1x, rand(4, 2))
+plot(s1x∙m, rand(4, 2))
 
 
 
 
 
-
-
-
-#=
+#=)
     abstract type PlSet end
     struct PlSetNotCat end
     struct PlR <: PlSet end # All numbers not a quantity
