@@ -97,6 +97,7 @@ plot([(s1x, s1y), (s2x, s2y)])
 
 plot(s1x, rand(4, 2))
 plot(s1x∙m, rand(4, 2))
+plot(s1x∙m, rand(4, 2)s, label = "LAB")
 
 
 

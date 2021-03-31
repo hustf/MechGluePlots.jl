@@ -3,7 +3,7 @@ module MechGluePlots
 import Unitfu
 import Unitfu: AbstractQuantity, Quantity, unit, ustrip, ∙
 import Plots
-import Plots: expand_extrema!
+import Plots: default
 using RecipesBase
 
 # In RecipesPipeline, this is called prior to recipes on single axis vectors.
@@ -68,8 +68,13 @@ end
 @recipe function f(::Type{T}, x::T) where T <: AbstractArray{<:Union{Missing,<:Quantity}}
     # while plotting, modify a vector of quantities to unitless,
     # but push the unit info to the relevant place.
-    #printstyled(color=:blue, ":debug2 vq \t")
-    #printstyled(plotattributes, "\n", color=:green)    
+    printstyled(color=:blue, ":debug2 vq \n")
+    ks = keys(plotattributes)
+    for k in ks
+        printstyled(k, "\t", color=:green)
+        printstyled("=>", "\t", color=:black)
+        printstyled(plotattributes[k], "\n", color=:yellow)
+    end
     u = unit(eltype(x))
     all_unit_info  = unit_info(plotattributes, u)
     println("vq, all_unit_info = ")
@@ -103,9 +108,22 @@ end
     return qvals
 end
 
-
+function show_pretty(plotattributes)
+    ks = keys(plotattributes)
+    for k in ks
+        if k == :unitinfo
+            println("unitinfo=>")
+            println(plotattributes[k])
+        else
+            printstyled(k, "\t", color=:green)
+            printstyled("=>", "\t", color=:black)
+            printstyled(plotattributes[k], "\n", color=:yellow)
+        end
+    end
+end
 
 function unit_conflicts(axisletter, unitinfo)
+    # TODO - revert to returning formatter and ...
     false
 end
 function unit_axis(axisletter, unitinfo)
@@ -114,9 +132,87 @@ function unit_axis(axisletter, unitinfo)
         inf = unitinfo[i]
         inf.letter == axisletter && return inf.unit
         i += 1
+        i > length(unitinfo) && return nothing
     end
 end
+
+function sertype(axisletter, unitinfo::Vector{SeriesUnitInfo})
+    i = 1
+    while true
+        inf = unitinfo[i]
+        inf.letter == axisletter && return inf.sertyp
+        i += 1
+    end
+end
+
+function sertype(axisletter, plotattr)
+    fromunitinfo = sertype(axisletter, get(plotattr, :unitinfo, nothing))
+    if !isnothing(fromunitinfo)
+        return fromunitinfo
+    else
+        return default(:seriestype)
+    end
+end
+
 # This is called after unit info is stored
+@recipe function f(::Type{Val{:quantity_vector}}, plt::AbstractPlot)
+    # Collected when units were dropped
+    unitinfo = get(plotattributes, :unitinfo, nothing)
+    printstyled(color=:blue, "plot recipe\n")
+
+    @assert length(unitinfo) < 3 "Too much unit info. Recipe not yet implemented."
+    # User could also specify how to show units through a keyword
+    kw_units_at_axes = Bool(get(plotattributes, :units_at_axes, true))
+    conflicts_x = unit_conflicts(:x, unitinfo)
+    conflicts_y = unit_conflicts(:y, unitinfo)
+    conflicts_z = unit_conflicts(:z, unitinfo)
+    show_pretty(plotattributes)
+    plx = get(plotattributes, :x, nothing)
+    ply = get(plotattributes, :y, nothing)
+    plz = get(plotattributes, :z, nothing)
+    @show plx
+    @show ply
+    @show plz
+    seriestyp = sertype(:x, plotattributes)
+    xguid = unit_axis(:x, unitinfo)
+    yguid = unit_axis(:y, unitinfo)
+    zguid = unit_axis(:z, unitinfo)
+
+    @series begin # the macro copies plotattributes to this new series 
+        seriestype := seriestyp # override plotattributes value
+        if !conflicts_x && kw_units_at_axes && !isnothing(xguid)
+            xguide --> xguid
+        end
+        if !conflicts_y && kw_units_at_axes && !isnothing(yguid)
+            yguide --> yguid
+        end
+        if !conflicts_y && kw_units_at_axes && !isnothing(yguid)
+            yguide --> yguid
+        end
+        if !isnothing(plx)
+            x := ustrip(plx)
+        end
+        if !isnothing(ply)
+            y := ustrip(ply)
+        end
+        if !isnothing(plz)
+            z := ustrip(plz)
+        end
+    end
+end
+@shorthands quantity_vector
+
+
+
+
+
+
+
+
+
+
+
+#= Series recipe
 @recipe function f(::Type{Val{:quantity_vector}}, x, y, z)
     # Collected when units were dropped
     unitinfo = get(plotattributes, :unitinfo, nothing)
@@ -155,7 +251,25 @@ end
         y := ustrip(y)
     end
 end
-@shorthands quantity_vector
+=#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #=
 @userplot struct VS2{T<:Vector{Tuple{AbstractVector, AbstractVector}}}
