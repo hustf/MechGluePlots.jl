@@ -11,10 +11,12 @@ if !@isdefined vr
     using MechanicalUnits
     using Plots
     using MechGluePlots
-    import Plots: default, px
+    import Plots: default
     import RecipesBase
     import RecipesBase: debug
     using Plots
+    import MechGluePlots: accumulate_unit_info, axis_units_bracketed, sertype
+    import MechGluePlots: print_prettyln, SeriesUnitInfo
 
     # 'vector' real, quantity
     vr = range(1, 3; step = 0.2)
@@ -29,6 +31,15 @@ if !@isdefined vr
     s1y = range(-1, 1, length = 4)
     s2x = range(1, -1, length = 4)
     s2y = range(-0.5, 0.5, length = 4)
+
+    mxr = hcat(s1x, s2x)
+    myr = hcat(s1y, s2y)
+    mxq = hcat(s1x∙m, s2x∙m)
+    myq = hcat(s1y∙s, s2y∙s)
+    mxqm = hcat(s1x∙m, s2x∙m²)
+    myqm = hcat(s1y∙s, s2y∙s²)
+
+
 end
 
 
