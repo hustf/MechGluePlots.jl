@@ -6,6 +6,7 @@ import Plots
 import Plots: default
 import Base: show, get
 using RecipesBase
+import RecipesBase._debug_recipes
 struct SeriesUnitInfo
     serno
     unit
@@ -20,21 +21,23 @@ include("internal_functions.jl")
 # Replace the function with a vector of values, and let the rest be done further down the pipeline.
 # @recipe function f(foo::F, x::T) where {F<:Function, T <: AbstractArray{<:Union{Missing,<:Quantity}}}
 @recipe function f(foo::F, x::T) where {F<:Function, T <: AbstractArray}
+    _debug_recipes[1] && printstyled(color=:red, ":MechGluePlots foo::F, x::T) where {F<:Function, T <: AbstractArray} \n")
     x, foo.(x) # Note the swap. For series with values, the ordinat is placed second.
-    # TODO check multiple columns
+    # TODO test multiple columns
 end
 
 @recipe function f(x::T, foo::F) where {F<:Function, T <: AbstractArray}
+    _debug_recipes[1] && printstyled(color=:red, ":MechGluePlots x::T, foo::F) where {F<:Function, T <: AbstractArray} \n")
     # Without recipes, plot(0:10, sin) and plot(sin, 0:10) produce the same plot, sin on y. Same here:
     x, foo.(x)
-    # TODO check multiple columns
+    # TODO test multiple columns
 end
 
 # apply_recipe args: Any[:(::Type{T}), :(x::T)]
 @recipe function f(::Type{T}, x::T) where T <: AbstractArray{<:Union{Missing,<:Quantity}}
     # while plotting, change a vector of quantities to a unitless vector,
     # but pass the lost info on to the later in the pipeline. 
-    # DEBUG printstyled(color=:red, ":debug2 \n")
+    _debug_recipes[1] && printstyled(color=:red, ":MechGluePlots ::Type{T}, x::T) where T <: AbstractArray{<:Union{Missing,<:Quantity}} \n")
     # DEBUG println(plotattributes)
     # Numeric type
     nut = numtype(eltype(x))
@@ -63,11 +66,20 @@ end
 
 # This is called after unit info is stored
 @recipe function f(::Type{Val{:quantity_vector}}, plt::AbstractPlot)
+    _debug_recipes[1] && printstyled(color=:blue, ":MechGluePlots ::Type{Val{:quantity_vector}}, plt::AbstractPlot) \n")
     # Info stored earlier in the pipeline
     unitinfo = get(plotattributes, :unitinfo, nothing)
     index = get(plotattributes, :series_plotindex, 0)
+    xlims =  get(plotattributes, :xlims, nothing)
+    ylims =  get(plotattributes, :ylims, nothing)
+    zlims =  get(plotattributes, :zlims, nothing)
+    xlims_ul = isnothing(xlims) ? xlims : ustrip.(xlims)
+    ylims_ul = isnothing(ylims) ? ylims : ustrip.(ylims)
+    zlims_ul = isnothing(zlims) ? zlims : ustrip.(zlims)
+
     seriestyp = sertype(index, unitinfo)
-    # DEBUG print_prettyln(plotattributes)
+    
+    _debug_recipes[1] &&  print_prettyln(plotattributes)
     gx = get(plotattributes, :xguide, "")
     gy = get(plotattributes, :yguide, "")
     gz = get(plotattributes, :zguid, "")
@@ -80,10 +92,8 @@ end
     plx = get(plotattributes, :x, nothing)
     ply = get(plotattributes, :y, nothing)
     plz = get(plotattributes, :z, nothing)
-    # DEBUG printstyled(color=:blue, ":debug3 plot recipe\n")
-    # DEBUG println("guides: ", gux, guy, guz)
-    # DEBUG println("series type: ", typeof(seriestyp), " ", seriestyp)
-    # DEBUG printstyled(color=:blue, ":debug3 plot recipe\n")
+    # _debug_recipes[1] &&  println("guides: ", gux, guy, guz)
+    # _debug_recipes[1] &&  println("series type: ", typeof(seriestyp), " ", seriestyp)
 
     # Delete our temporary series type used for dispatching
     pop!(plotattributes, :seriestype)
@@ -99,6 +109,16 @@ end
         end
         if !isnothing(plz) && guz != "[]"
             zguide := guz
+        end
+        # Axis limits might have quanity units, which we strip off.
+        if !isnothing(xlims_ul)
+            xlims := xlims_ul
+        end
+        if !isnothing(ylims_ul)
+            ylims := ylims_ul
+        end
+        if !isnothing(zlims_ul)
+            zlims := zlims_ul
         end
     end
 end
