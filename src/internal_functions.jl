@@ -1,25 +1,41 @@
-function relevant_key(plotattr)
-    if RecipesBase.is_explicit(plotattr, :letter)
-        letter = plotattr[:letter]
+function relevant_key(attr)
+    if RecipesBase.is_explicit(attr, :letter)
+        letter = attr[:letter]
         Symbol(letter, :guide)
     else
         :guide
     end
 end
 
-function accumulate_unit_info(vui, plotattr, u, serno)
-    letter = get(plotattr, :letter, nothing)
-    relevant_axis_guide = relevant_key(plotattr)
-    label = get(plotattr, :label, nothing)
-    sertyp = get(plotattr, :seriestype, nothing)
+function accumulate_unit_info(vui, attr, u, serno; ax = nothing)
+    if length(vui) == 0
+        # Store pre-existing guide strings in "series 0"
+        gx = get(attr, :xguide, nothing)
+        gy = get(attr, :yguide, nothing)
+        gz = get(attr, :zguid, nothing)
+        addinfo = SeriesUnitInfo(0, gx, nothing, nothing, :x, nothing)
+        push!(vui, addinfo)
+        addinfo = SeriesUnitInfo(0, gy, nothing, nothing, :y, nothing)
+        push!(vui, addinfo)
+        addinfo = SeriesUnitInfo(0, gz, nothing, nothing, :z, nothing)
+        push!(vui, addinfo)
+    end
+
+    letter = get(attr, :letter, nothing)
+    if isnothing(letter)
+        letter = ax
+    end
+    relevant_axis_guide = relevant_key(attr)
+    label = get(attr, :label, nothing)
+    sertyp = get(attr, :seriestype, nothing)
+    if sertyp == :postfixseries
+        sertyp = nothing
+    end
     if typeof(label) <: AbstractArray
         label = label[serno]
     end
-    if typeof(sertyp) <: AbstractArray
+    if typeof(sertyp) <: AbstractArray && sertyp[serno] != :postfixseries
         sertyp = sertyp[serno]
-    end
-    if sertyp == :postfixit
-        sertyp = nothing
     end
     addinfo = SeriesUnitInfo(serno, u, label, relevant_axis_guide, letter, sertyp)
     push!(vui, addinfo)
@@ -28,11 +44,17 @@ end
 
 function axis_units_bracketed(axisletter, unitinfo::Vector{SeriesUnitInfo})
     setu = Set{String}()
-    for uinf in unitinfo
+    initialguide = ""
+    for uinf in unitinfo[1:3]
+        if uinf.letter == axisletter && !isnothing(uinf.unit_foo)
+            initialguide *= string(uinf.unit_foo) * " "
+        end
+    end
+    for uinf in unitinfo[4:end]
         uinf.letter == axisletter && push!(setu, string(uinf.unit_foo))
     end
     vu = sort(collect(setu))
-    "[" * join(setu, ", ") * "]"
+    initialguide * "[" * join(setu, ", ") * "]"
 end
 
 
@@ -109,6 +131,9 @@ end
 
 
 
+
+
+
 function modified_ribbon(ribbon, serno, u)
     isnothing(ribbon) && return nothing
     _debug_recipes[1] && @show ribbon, serno, u
@@ -153,8 +178,8 @@ function print_prettyln(v::T) where T <: Vector{SeriesUnitInfo}
     end
 end
 
-function print_prettyln(plotattrib::Dict{Symbol, Any})
-    for (ke, va) in plotattrib
+function print_prettyln(attr::Dict{Symbol, Any})
+    for (ke, va) in attr
         if ke == :unitinfo
             printstyled(lpad("unitinfo", 18), "    =>\n", color = :green)
             print_prettyln(va)
@@ -165,15 +190,15 @@ function print_prettyln(plotattrib::Dict{Symbol, Any})
     end
     println(" ")
 end
-function print_prettyln(plotattrib)
-    println("{", typeof(plotattrib), "}")
-    println(plotattrib)
+function print_prettyln(attr)
+    println("{", typeof(attr), "}")
+    println(attr)
 end
-function print_prettyln(plotattrib::Plots.RecipesPipeline.DefaultsDict)
+function print_prettyln(attr::Plots.RecipesPipeline.DefaultsDict)
     println("    Explicit")
-    print_prettyln(plotattrib.explicit)
+    print_prettyln(attr.explicit)
     println("    Defaults")
-    print_prettyln(plotattrib.defaults)
+    print_prettyln(attr.defaults)
 end
 """
     cepad(s, n; p = ' ')

@@ -18,26 +18,37 @@ end
 
 include("internal_functions.jl")
 
-
-
-@recipe function f(foos::F, y::T) where {F<:Vector{Function}, T <: AbstractArray}
+@recipe function f(foos::F, y::T) where {F<:Vector{Function}, T <: AbstractArray{<:Union{Missing,<:Quantity}}}
     _debug_recipes[1] && printstyled(color=:172, "\n    MechGluePlots foos::F, y::T) where {F<:Vector{Function}, T<: AbstractArray{<:Union{Missing,<:Quantity}}}\n")
     x = similar(y,  Quantity{T, D, U} where {T, D, U})
+    vui = get(plotattributes, :unitinfo, SeriesUnitInfo[])
     for (f, serno) in zip(foos, (1:size(y, 2)))
         sy = y[:, serno]
         sx = map(f, sy)
         x[:, serno] = sx
+        u = unit(first(sx))
+        vui  = accumulate_unit_info(vui, plotattributes, u, serno; ax = :x)
+        v = unit(first(sy))
+        vui  = accumulate_unit_info(vui, plotattributes, u, serno; ax = :y)
+        print_prettyln(vui)
     end
     x, y
 end
 
 @recipe function f( x::T, foos::F) where {F<:Vector{Function}, T<: AbstractArray{<:Union{Missing,<:Quantity}}}
     _debug_recipes[1] && printstyled(color=:172, "\n    MechGluePlots x::T, foos::F) where {F<:Vector{Function}, T<: AbstractArray{<:Union{Missing,<:Quantity}}}\n")
+   error("Is this called?")
     y = similar(x,  Quantity{T, D, U} where {T, D, U})
+    vui = get(plotattributes, :unitinfo, SeriesUnitInfo[])
     for (f, serno) in zip(foos, (1:size(x, 2)))
         sx = x[:, serno]
         sy = map(f, sx)
         y[:, serno] = sy
+        u = unit(first(sx))
+        vui  = accumulate_unit_info(vui, plotattributes, u, serno; ax = :x)
+        v = unit(first(sy))
+        vui  = accumulate_unit_info(vui, plotattributes, u, serno; ax = :y)
+        print_prettyln(vui)
     end
     x, y
 end
@@ -51,15 +62,11 @@ end
     x, map(foo, x) # Note the swap. For series with values, the ordinat is placed second.
 end 
 
-
 @recipe function f(x::T, foo::F) where {F<:Function, T<:AbstractArray}
     _debug_recipes[1] && printstyled(color=:yellow, "\n    MechGluePlots x::T, foo::F) where {F<:Function, T<:AbstractArray}\n")
     # Without recipes, plot(0:10, sin) and plot(sin, 0:10) produce the same plot, sin on y. Same here:
     x, map(foo, x)
 end
-
-
-
 
 # apply_recipe args: Any[:(::Type{T}), :(x::T)]
 #_apply_type_recipe(plotattributes::Any, v::AbstractArray, letter::Any) at type_recipe.jl:33
@@ -80,48 +87,38 @@ end
         vui  = accumulate_unit_info(vui, plotattributes, u, serno)
         # Numeric type
         nut = numtype(first(sx))
-        sux = nut.(ustrip(x[:, serno] ./ u))
+        sux = map(nut, ustrip(x[:, serno] ./ u))
         vals[:, serno] = sux
         ribbon = modified_ribbon(ribbon, serno, u)
     end
     # Pass the info stripped from 'x' to dictionary 'plotattributes' in the pipeline 
     unitinfo := vui
     if !isnothing(ribbon)
-        @show ribbon
         ribbon := ribbon
     end
-    seriestype := :postfixit
+    # Strip limits off units. Must be done early in the pipeline.
+    letter = plotattributes[:letter]
+    li = get(plotattributes, Symbol(letter, :lims), nothing)
+    if !isnothing(li)
+        ulli = ustrip.(li)
+        if letter == :x
+            xlims := ustrip.(li)
+        elseif letter == :y
+            ylims := ustrip.(li)
+        elseif letter == :z
+            zlims := ustrip.(li)
+        end
+    end
+    # For dispatch to series recipe
+    seriestype := :postfixseries
     return vals
 end
 
-#=
-# target plot(myq, [f_q_q, x-> 0.8f_q_q(1.25x)])
-#_apply_type_recipe(plotattributes::Any, v::AbstractArray, letter::Any) at type_recipe.jl:33]
-@recipe function f(::Type{T}, v::T) where {T<:Vector{Function}}
-    _debug_recipes[1] && printstyled(color=:172, "\n    :Type{T}, x::T) where {T<:Vector{Function}}\n")
-     # _debug_recipes[1] &&  print_prettyln(plotattributes)
-    # Prior, if any, unit and series type info 
-    vui = get(plotattributes, :unitinfo, SeriesUnitInfo[])
-    if length(vui) > 1
-        # Store functions in plotattributes, as units (units are callables too)
-        for serno in 1:size(v,1)
-            foo = v[serno]
-            vui  = accumulate_unit_info(vui, plotattributes, foo, serno)
-        end
-        # Pass the info stripped from 'x' to dictionary 'plotattributes' in the pipeline 
-        unitinfo := vui
-        # Return v to the pipeline won't dispatch on the series type quanity_vector later in the pipeline.
-        # But we can trigger a new round through the pipeline:
-        @series begin end
-    else
-        # Don't interfere if the arguments are not quantities
-        v
-    end
-end
-=#
+
+
 
 #f(y), at user_recipe.jl:36
-@recipe function f(foo::F, arg1::T, arg2::T) where {F <: Function, T <: AbstractArray{<:Union{Missing,<:Quantity}}}
+@recipe function f(foo::F, arg1::T, arg2::T) where {F <: Function, T <: AbstractArray{<:Union{Missing, <:Quantity}}}
     _debug_recipes[1] && printstyled(color=:172, "\n    foo::F, arg1::T, arg2::T) where {F <: Function, T <: AbstractArray{<:Union{Missing,<:Quantity}}}\n")
     map(foo, arg1), arg1, arg2
 end
@@ -131,8 +128,6 @@ end
 #f(x)
 @recipe function f(arg1::T, foo::F, arg2::T) where {F <: Function, T <: AbstractArray{<:Union{Missing,<:Real}}}
     _debug_recipes[1] && printstyled(color=:172, "\n    arg1::T, foo::F, arg2::T) where {F <: Function, T <: AbstractArray{<:Union{Missing,<:Real}}}\n")
-    @show stacktrace()[2:4]
-    #_debug_recipes[1] &&  print_prettyln(plotattributes)
     # Prior, if any, unit and series type info
     vui = get(plotattributes, :unitinfo, SeriesUnitInfo[])
     isnothing(vui) && error("f(x): Wrong  MechGluePlots recipe triggered. Missing unit info.")
@@ -143,7 +138,121 @@ end
 end
 
 
+
+@shorthands postfixseries
+@recipe function f(::Type{Val{:postfixseries}}, x, y, z)
+    _debug_recipes[1] && printstyled(color=:blue, "\n    MechGluePlots ::Type{Val{:postfixseries}}, x, y, z)\n")
+
+    # Info stored earlier in the pipeline
+    _debug_recipes[1] &&  print_prettyln(plotattributes)
+
+    unitinfo = plotattributes[:unitinfo]
+    serno = plotattributes[:series_plotindex]
+
+    gux = axis_units_bracketed(:x, unitinfo)
+    guy = axis_units_bracketed(:y, unitinfo)
+    guz = axis_units_bracketed(:z, unitinfo)
+
+    # Units are normally stripped earlier in the pipeline, but this does not 
+    # occur with 'plot([f_q_q f_q_q], xlims = (2,3)s, ylims = (-10,-5)N)'
+    if !isnothing(x) && !(eltype(x) <: Real)
+        ul = map(numtype(eltype(x)), ustrip(x))
+        x := ul
+    end
+    if !isnothing(y) && !(eltype(y) <: Real)
+        ul = map(numtype(eltype(y)), ustrip(y))
+        y := ul
+    end
+    if !isnothing(z) && !(eltype(z) <: Real)
+        ul = map(numtype(eltype(z)), ustrip(z))
+        z := ul
+    end
+
+    if !isnothing(x) && gux != "[]"
+        xguide := gux
+    end
+    if !isnothing(y) && guy != "[]"
+        yguide := guy
+    end
+    if !isnothing(z) && guz != "[]"
+        zguide := guz
+    end
+
+    seriestyp = sertype(serno, unitinfo)
+    if isnothing(seriestyp)
+        seriestype := default(:seriestype)
+    else
+        seriestype := seriestyp
+    end
+    return x, y, z
+end
+
+
+
+
+
+#experiments
+@recipe function f(arg1::Tuple{Q, T}, foo::F) where {F <: Function, Q<:Quantity{T1, D, U}, T<:Quantity{T2, D, U}} where {T1, T2, D, U}
+    _debug_recipes[1] && printstyled(color=:172, "\n    MechGluePlots  arg1::Tuple{Q, T}, foo::F) where {F <: Function, Q<:Quantity{T1, D, U}, T<:Quantity{T2, D, U}} where {T1, T2, D, U}\n")
+    error("ouch")
+end
+
+@recipe function f(foo::F, arg1::Tuple{Q, T}) where {F <: Function, Q<:Quantity{T1, D, U}, T<:Quantity{T2, D, U}} where {T1, T2, D, U}
+    _debug_recipes[1] && printstyled(color=:172, "\n    MechGluePlots  foo::F, arg1::Tuple{Q, T}) where {F <: Function, Q<:Quantity{T1, D, U}, T<:Quantity{T2, D, U}} where {T1, T2, D, U}\n")
+    error("ouch")
+end
+
+
+
+@recipe function f(arg1::Tuple{Q, T}, foo::F) where {F <: Vector{Function}, Q<:Quantity{T1, D, U}, T<:Quantity{T2, D, U}} where {T1, T2, D, U}
+    _debug_recipes[1] && printstyled(color=:172, "\n    MechGluePlots  arg1::Tuple{Q, T}, foo::F) where {F <: Vector{Function}, Q<:Quantity{T1, D, U}, T<:Quantity{T2, D, U}} where {T1, T2, D, U}\n")
+    error("ouch")
+end
+
+@recipe function f(foo::F, arg1::Tuple{Q, T}) where {F <: Vector{Function}, Q<:Quantity{T1, D, U}, T<:Quantity{T2, D, U}} where {T1, T2, D, U}
+    _debug_recipes[1] && printstyled(color=:172, "\n    MechGluePlots  foo::F, arg1::Tuple{Q, T}) where {F <: Vector{Function}, Q<:Quantity{T1, D, U}, T<:Quantity{T2, D, U}} where {T1, T2, D, U}\n")
+    error("ouch")
+end
+
+
+@recipe function f(arg1::Tuple{Q, T}, foo::F) where {F, Q<:Quantity{T1, D, U}, T<:Quantity{T2, D, U}} where {T1, T2, D, U}
+    _debug_recipes[1] && printstyled(color=:172, "\n    MechGluePlots  arg1::Tuple{Q, T}, foo::F) where {F , Q<:Quantity{T1, D, U}, T<:Quantity{T2, D, U}} where {T1, T2, D, U}\n")
+    error("ouch")
+end
+
+@recipe function f(foo::F, arg1::Tuple{Q, T}) where {F , Q<:Quantity{T1, D, U}, T<:Quantity{T2, D, U}} where {T1, T2, D, U}
+    _debug_recipes[1] && printstyled(color=:172, "\n    MechGluePlots  foo::F, arg1::Tuple{Q, T}) where {F , Q<:Quantity{T1, D, U}, T<:Quantity{T2, D, U}} where {T1, T2, D, U}\n")
+    error("ouch")
+end
+
+
+@recipe function f(::Type{Tuple{Q, T}}, arg1::Tuple{Q, T}) where {F , Q<:Quantity{T1, D, U}, T<:Quantity{T2, D, U}} where {T1, T2, D, U}
+    _debug_recipes[1] && printstyled(color=:172, "\n    MechGluePlots  foo::F, arg1::Tuple{Q, T}) where {F , Q<:Quantity{T1, D, U}, T<:Quantity{T2, D, U}} where {T1, T2, D, U}\n")
+    error("ouch")
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #=
+
+@recipe function f(f::Function, xmin::T, xmax::T) where {T<:Quantity}
+    _debug_recipes[1] && printstyled(color=:172, "\n    MechGluePlots f::Function, xmin::T, xmax::T) where {T<:Quantity}\n")
+    nutmin, nutmax = numtype(xmin), numtype(xmax)
+    f, nutmin(ustrip(xmin)), nutmax(ustrip(xmax))
+end
 
 # Not needed below...
 
@@ -216,7 +325,7 @@ end
         unitinfo := unitinfo
     end
     # With this series evaluated, we'll pass it on:
-    seriestype := :postfixit
+    seriestype := :postfixseries
 end
 
 =#
@@ -279,98 +388,30 @@ end
     end
 end
 @shorthands quantity_vector
-=#
-# Second self-defined series type
-@shorthands postfixit
-@recipe function f(::Type{Val{:postfixit}}, x, y, z)
-    _debug_recipes[1] && printstyled(color=:blue, "\n    MechGluePlots ::Type{Val{:postfixit}}, x, y, z)\n")
 
-    # Info stored earlier in the pipeline
-    _debug_recipes[1] &&  print_prettyln(plotattributes)
-
-
-    #temporary
-    _debug_recipes[1] &&  print_prettyln(plotattributes[:extra_kwargs])
-    unitinfo = plotattributes[:unitinfo]
-    serno = plotattributes[:series_plotindex]
-
-    gx = get(plotattributes, :xguide, "")
-    gy = get(plotattributes, :yguide, "")
-    gz = get(plotattributes, :zguid, "")
-
-    sux = axis_units_bracketed(:x, unitinfo)
-    suy = axis_units_bracketed(:y, unitinfo)
-    suz = axis_units_bracketed(:z, unitinfo)
-    gux = gx == "" ? sux : gx * " " * sux
-    guy = gy == "" ? suy : gy * " " * suy
-    guz = gz == "" ? suz : gz * " " * suz
-
-    xlims =  get(plotattributes, :xlims, nothing)
-    ylims =  get(plotattributes, :ylims, nothing)
-    zlims =  get(plotattributes, :zlims, nothing)
-    xlims_ul = isnothing(xlims) ? xlims : ustrip.(xlims)
-    ylims_ul = isnothing(ylims) ? ylims : ustrip.(ylims)
-    zlims_ul = isnothing(zlims) ? zlims : ustrip.(zlims)
-
-    # Remove the temporary dispatch series type.
-    
-    seriestyp = sertype(serno, unitinfo)
-    if isnothing(seriestyp)
-        seriestype := default(:seriestype)
+# target plot(myq, [f_q_q, x-> 0.8f_q_q(1.25x)])
+#_apply_type_recipe(plotattributes::Any, v::AbstractArray, letter::Any) at type_recipe.jl:33]
+@recipe function f(::Type{T}, v::T) where {T<:Vector{Function}}
+    _debug_recipes[1] && printstyled(color=:172, "\n    :Type{T}, x::T) where {T<:Vector{Function}}\n")
+     # _debug_recipes[1] &&  print_prettyln(plotattributes)
+    # Prior, if any, unit and series type info 
+    vui = get(plotattributes, :unitinfo, SeriesUnitInfo[])
+    if length(vui) > 1
+        # Store functions in plotattributes, as units (units are callables too)
+        for serno in 1:size(v,1)
+            foo = v[serno]
+            vui  = accumulate_unit_info(vui, plotattributes, foo, serno)
+        end
+        # Pass the info stripped from 'x' to dictionary 'plotattributes' in the pipeline 
+        unitinfo := vui
+        # Return v to the pipeline won't dispatch on the series type quanity_vector later in the pipeline.
+        # But we can trigger a new round through the pipeline:
+        @series begin end
     else
-        seriestype := seriestyp
+        # Don't interfere if the arguments are not quantities
+        v
     end
-    
-
-    # Units are normally stripped earlier in the pipeline, but this does not seem
-    # to occur with 'plot([f_q_q f_q_q], xlims = (2,3)s, ylims = (-10,-5)N)'
-    if !isnothing(x) && !(eltype(x) <: Real)
-        plx_ul = ustrip(x)
-        x := plx_ul
-    end
-    if !isnothing(y) && !(eltype(y) <: Real)
-        ply_ul = ustrip(y)
-        y := ply_ul
-    end
-    if !isnothing(z) && !(eltype(z) <: Real)
-        plz_ul = ustrip(z)
-        z := plz_ul
-    end
-
-
-    if !isnothing(x) && gux != "[]"
-        xguide := gux
-    end
-    if !isnothing(y) && guy != "[]"
-        yguide := guy
-    end
-    if !isnothing(z) && guz != "[]"
-        zguide := guz
-    end
-    # Axis limits might have quanity units, which we strip off.
-    if !isnothing(xlims_ul)
-        xlims := xlims_ul
-    end
-    if !isnothing(ylims_ul)
-        ylims := ylims_ul
-    end
-    if !isnothing(zlims_ul)
-        zlims := zlims_ul
-    end
-    return x, y, z
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
+=#
 
 end
