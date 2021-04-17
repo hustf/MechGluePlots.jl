@@ -18,6 +18,7 @@ if !@isdefined vq
     vr = range(1, 3; step = 0.2)
     vq = range(1, 3; step = 0.2)s
     # Function_range_domain
+
     f_r_r(t)           = sin(0.3∙2π∙t)     ∙ 9.81
     f_q_q(t::Quantity) = sin(0.3∙2π∙t / s) ∙ 9.81N
     f_q_r(t::Quantity) = sin(0.3∙2π∙t / s)  ∙ 9.81
@@ -37,16 +38,9 @@ if !@isdefined vq
     mxqm = hcat(s1x∙m, s2x∙m²)
     myqm = hcat(s1y∙s, s2y∙s²)
 
-    s_1_down  = 1.0 * range(20, 2, length = 8)
-    s_1_up = 1.0 * range(2, 20, length = 8)
-    s_2_down = 1.0 * range(16, 1, length = 8)
-    s_2_up = 1.0 * range(5, 20, length = 8)
-
-
-    r1d(x) = (0.75 + 0.25 * f_r_r(0.25x))
-    r2d(x) = 0.5 * r1d(x)
-    r1u(x) = 0.25 + f_r_r(0.5x)^2
-    r2u(x) = 0.5 * r1u(x)
-    
+    s_1_down  = range(20, 6, length = 8)
+    s_1_up = range(6, 20, length = 8)
+    s_2_down = range(8, 1, length = 8)
+    s_2_up =  range(1, 8, length = 8)
 
 end

@@ -132,7 +132,7 @@ function modified_ribbon(ribbon::T, serno, letter, u) where T<:Matrix
     end
 end
 
-
+# Never hit during tests
 function modified_ribbon(ribbon::T, serno, letter, u) where T<:Matrix{Function}
     _debug_recipes[1] && printstyled(color=:green, "\n    MechGluePlots modified_ribbon($ribbon<:Matrix{Function}, $serno, $letter, $u)\n")
     if size(ribbon, 2) > 1
@@ -141,13 +141,13 @@ function modified_ribbon(ribbon::T, serno, letter, u) where T<:Matrix{Function}
         # Modified branch
         modrib_se = broadcast(se-> modified_ribbon(se, serno, letter, u), serib)
         # We are only modifying the branch of this tree relevant to the series, but we need to
-        # return all of the tree. 
+        # return all of the tree.
         hcat(ribbon[:, 1:serno-1], modrib_se, ribbon[:, serno + 1:end])
     else
         error("This form of the ribbon argument is not implemented with quantity plots")
     end
 end
-
+# Never hit during tests
 function modified_ribbon(ribbon::T, serno, letter, u) where T<:Vector{Function}
     _debug_recipes[1] && printstyled(color=:green, "\n    MechGluePlots modified_ribbon($ribbon<:Vector{Function}, $serno, $letter, $u)\n")
     if size(ribbon, 1) > 1
@@ -156,7 +156,7 @@ function modified_ribbon(ribbon::T, serno, letter, u) where T<:Vector{Function}
         # Modified branch
         modrib_se = modified_ribbon(se, serno, letter, u)
         # We are only modifying the branch of this tree relevant to the series, but we need to
-        # return all of the tree. 
+        # return all of the tree.
         vcat(ribbon[1:serno-1], modrib_se, ribbon[serno + 1:end])
     else
         error("This form of the ribbon argument is not implemented with quantity plots")
@@ -167,16 +167,21 @@ function modified_ribbon(ribbon::Function , serno, letter, u)
     _debug_recipes[1] && printstyled(color=:yellow, "\n    MechGluePlots modified_ribbon($ribbon::Function, $serno, $letter, $u)\n")
     if letter == :y
         # u is the defined output unit
-        #x-> ribbon(IntArg(x)) / (1u)
         x-> ribbon(x) / (1u)
     else
         # u is the defined input unit
-        #x::IntArg -> ribbon(x.val∙u)
         x -> ribbon(x∙u)
     end
 end
 
-
+function modified_ribbon(ribbon::T , serno, letter, u) where T<:Vector
+    if letter == :x
+        ribbon
+    else
+        _modified_ribbon(ribbon, u)
+    end
+end
+# Never hit during tests
 function modified_ribbon(ribbon::T , serno, letter, u) where T
     @info T
     @info ribbon
@@ -184,23 +189,23 @@ function modified_ribbon(ribbon::T , serno, letter, u) where T
 end
 
 """
-    ribbon_series(ribbon, serno)
-Extract the part of 'ribbon' structure that belongs to 'series' no,
-without evaluating - ribbon may be a function.
+    extract_series(argobj, serno)
+Extract the part of 'argobj' structure that belongs to 'series' no,
+without evaluating - argobj may be a function, a tuple, etc.
 
-This mimicks the way the 'ribbon' argument is interpreted by 'Plots.jl',
-although that would evaluate directly.
+This mimicks the way the 'argobj' argument is interpreted by 'Plots.jl',
+but this leaves evaluating for other parts in the pipeline.
 """
-function ribbon_series(ribbon::Tuple{S, T}, serno) where {S, T}
-    (ribbon_series(ribbon[1], serno), 
-    ribbon_series(ribbon[2], serno))
+function extract_series(argobj::Tuple{S, T}, serno) where {S, T}
+    (extract_series(argobj[1], serno),
+    extract_series(argobj[2], serno))
 end
-ribbon_series(ribbon, serno) = ribbon[serno]
-ribbon_series(ribbon::Matrix, serno) = ribbon_series[:, serno]
-ribbon_series(ribbon::Nothing, serno) = ribbon
-ribbon_series(ribbon::Number, serno) = ribbon
-ribbon_series(ribbon::Function, serno) = ribbon
-ribbon_series(ribbon::AbstractRange, serno) = ribbon
+extract_series(argobj, serno) = argobj[serno]
+extract_series(argobj::Matrix, serno) = argobj[:, serno]
+extract_series(argobj::Nothing, serno) = argobj
+extract_series(argobj::Number, serno) = argobj
+extract_series(argobj::Function, serno) = argobj
+extract_series(argobj::AbstractRange, serno) = argobj
 
 ##########################
 #  Print debug functions
