@@ -1,4 +1,4 @@
-function relevant_key(attr)
+function relevant_guide_key(attr)
     if RecipesBase.is_explicit(attr, :letter)
         letter = attr[:letter]
         Symbol(letter, :guide)
@@ -25,7 +25,7 @@ function accumulate_unit_info(vui, attr, u, serno; ax = nothing)
     if isnothing(letter)
         letter = ax
     end
-    relevant_axis_guide = relevant_key(attr)
+    relevant_axis_guide = relevant_guide_key(attr)
     label = get(attr, :label, nothing)
     sertyp = get(attr, :seriestype, nothing)
     if sertyp == :postfixseries
@@ -42,77 +42,31 @@ function accumulate_unit_info(vui, attr, u, serno; ax = nothing)
     vui
 end
 
-function axis_units_bracketed(axisletter, unitinfo::Vector{SeriesUnitInfo})
-    setu = Set{String}()
-    initialguide = ""
-    for uinf in unitinfo[1:3]
-        if uinf.letter == axisletter && !isnothing(uinf.unit_foo)
-            initialguide *= string(uinf.unit_foo) * " "
-        end
-    end
+units_from_string(st) = Set{String}([ma.captures[1] for ma in eachmatch(r"\[(.*?)\]", st)])
+
+function axis_guide_with_units(letter, attrdic, unitinfo::Vector{SeriesUnitInfo})
+    existing_guide_string = string(get(attrdic, Symbol(letter, :guide), ""))
+    # Collect units for the axis, one instance only
+    existing_units = units_from_string(existing_guide_string )
+    new_u = Set{String}()
     for uinf in unitinfo[4:end]
-        uinf.letter == axisletter && push!(setu, string(uinf.unit_foo))
+        uinf.letter == letter && push!(new_u, string(uinf.unit_foo))
     end
-    vu = sort(collect(setu))
-    initialguide * "[" * join(setu, ", ") * "]"
-end
-
-
-function get_unevaluated_info(serno, unitinfo::Vector{SeriesUnitInfo})
-    for uinf in reverse(unitinfo)
-        ufo = uinf.unit_foo
-        uinf.serno == serno && ufo isa Function && return uinf
+    add_units = setdiff(new_u,  existing_units)
+    add_string = if length(add_units) == 0
+        ""
+    else
+        "[" * join(collect(add_units), "], [") * "]"
     end
-    nothing
-end
-is_evaluated(serno, unitinfo::Vector{SeriesUnitInfo}) = isnothing(get_unevaluated_info(serno, unitinfo))
-
-function remove_fooinfo(unitinfo::Vector{SeriesUnitInfo}, serno)
-    modinfo = SeriesUnitInfo[]
-    for uinf in reverse(unitinfo)
-        if uinf.serno == serno && uinf.unit_foo isa Function
-            # pass over
+    if length(add_string) == 0
+        existing_guide_string
+    else
+        if length(existing_units) > 0
+            existing_guide_string * ", " * add_string
         else
-            push!(modinfo, uinf)
+            existing_guide_string * " " * add_string
         end
     end
-    modinfo
-end
-
-function evaluate_functions(serno, unitinfo, x, y, z)
-    ui = get_unevaluated_info(serno, unitinfo)
-    foo = ui.unit_foo
-    toax = ui.letter
-    # Error messages here will be hidden by 'ERROR: The backend must not support...'. Hence, we use @info.
-    input, inputunit = if toax == :x
-        y, get_unit(:y, ui.serno, unitinfo)
-    elseif toax == :y
-        x, get_unit(:x, ui.serno, unitinfo)
-    elseif toax == :z
-        emsg = "MechGluePlots does not yet support f(x,y) - surfaces. Evaluate in advance!"
-        @error emsg
-        throw(emsg)
-    else
-        emsg = "Could not determine input values to $foo. Continuing."
-        @error emsg
-    end
-    if isa(input, AbstractArray{<:Union{Missing,<:Quantity}})
-        emsg = "In evaluate_functions, expected a unitless vector. Continuing."
-        @error emsg
-    end
-    input_quantitites = input ∙ inputunit
-    values = map(foo, input_quantitites)
-    toax, values
-end
-
-
-function get_unit(axisletter, serno, unitinfo::Vector{SeriesUnitInfo})
-    for uinf in reverse(unitinfo)
-        uinf.letter == axisletter && uinf.serno == serno && return uinf.unit_foo
-    end
-    emsg = "Could not determine unit of axis $axisletter and series no. $serno"
-    @info emsg
-    error(emsg)
 end
 
 
@@ -122,6 +76,7 @@ function axis_unit_series_no(axisletter, unitinfo::Vector{SeriesUnitInfo})
     end
     error("Could not determine axis unit and series number")
 end
+
 function sertype(index, unitinfo::Vector{SeriesUnitInfo})
     for uinf in reverse(unitinfo)
         uinf.serno == index && !isnothing(uinf.sertyp) && return uinf.sertyp
@@ -129,38 +84,129 @@ function sertype(index, unitinfo::Vector{SeriesUnitInfo})
     default(:seriestype)
 end
 
+_modified_ribbon(ribbon, u) = ribbon / u
+_modified_ribbon(ribbon::Function, u) = x-> ribbon(x) / (1u)
 
-
-
-
-
-function modified_ribbon(ribbon, serno, u)
-    isnothing(ribbon) && return nothing
-    _debug_recipes[1] && @show ribbon, serno, u
-    thisrib = ribbon 
-    thismod = if !isnothing(thisrib)
-        if length(methods(thisrib)) == 0
-            @info "It's a simple division"
-            if thisrib isa Array
-                thisrib[:, serno] / u
-            else
-                thisrib / u
-            end
-        else
-            @info "It's not"
-            @show methods(ribbon)
-            x -> thisrib(x) / u
-        end
-    end
-    if ribbon isa Array
-        @show ribbon, thismod
-        # This matrix will temporarily have different units in each column
-        return hcat(ribbon[:, 1:serno-1], thismod, ribbon[:, serno+1:end])
+function modified_ribbon(ribbon::T, serno, letter, u) where T<:Union{Missing,<:Quantity}
+    if letter == :y
+        ribbon / u
     else
-        return thismod
+        ribbon
     end
 end
 
+function modified_ribbon(ribbon::T, serno, letter, u) where T<:Tuple
+    if letter ==:y
+        map(ribbon) do r
+            modified_ribbon(r, serno, letter, u)
+        end
+    else
+        ribbon
+    end
+end
+
+function modified_ribbon(ribbon::T, serno, letter, u) where T<:AbstractRange
+    if letter ==:y
+        broadcast(se-> _modified_ribbon(se, u), ribbon)
+    else
+        ribbon
+    end
+end
+
+function modified_ribbon(ribbon::T, serno, letter, u) where T<:Matrix
+    _debug_recipes[1] && printstyled(color=:yellow, "\n    MechGluePlots modified_ribbon($ribbon<:Matrix, $serno, $letter, $u)\n")
+    if letter ==:y
+        if size(ribbon, 2) > 1
+            # Branch to modify
+            serib = ribbon[:, serno]
+            # Modified branch
+            modrib_se = broadcast(se-> _modified_ribbon(se, u), serib)
+            # We are only modifying the branch of this tree relevant to the series, but we need to
+            # return all of the tree. Most likely, an Array{Any}
+            hcat(ribbon[:, 1:serno-1], modrib_se, ribbon[:, serno + 1:end])
+        else
+            ribbon / u
+        end
+    else
+        ribbon
+    end
+end
+
+
+function modified_ribbon(ribbon::T, serno, letter, u) where T<:Matrix{Function}
+    _debug_recipes[1] && printstyled(color=:green, "\n    MechGluePlots modified_ribbon($ribbon<:Matrix{Function}, $serno, $letter, $u)\n")
+    if size(ribbon, 2) > 1
+        # Branch to modify
+        serib = ribbon[:, serno]
+        # Modified branch
+        modrib_se = broadcast(se-> modified_ribbon(se, serno, letter, u), serib)
+        # We are only modifying the branch of this tree relevant to the series, but we need to
+        # return all of the tree. 
+        hcat(ribbon[:, 1:serno-1], modrib_se, ribbon[:, serno + 1:end])
+    else
+        error("This form of the ribbon argument is not implemented with quantity plots")
+    end
+end
+
+function modified_ribbon(ribbon::T, serno, letter, u) where T<:Vector{Function}
+    _debug_recipes[1] && printstyled(color=:green, "\n    MechGluePlots modified_ribbon($ribbon<:Vector{Function}, $serno, $letter, $u)\n")
+    if size(ribbon, 1) > 1
+        # Branch to modify
+        se = ribbon[serno]
+        # Modified branch
+        modrib_se = modified_ribbon(se, serno, letter, u)
+        # We are only modifying the branch of this tree relevant to the series, but we need to
+        # return all of the tree. 
+        vcat(ribbon[1:serno-1], modrib_se, ribbon[serno + 1:end])
+    else
+        error("This form of the ribbon argument is not implemented with quantity plots")
+    end
+end
+
+function modified_ribbon(ribbon::Function , serno, letter, u)
+    _debug_recipes[1] && printstyled(color=:yellow, "\n    MechGluePlots modified_ribbon($ribbon::Function, $serno, $letter, $u)\n")
+    if letter == :y
+        # u is the defined output unit
+        #x-> ribbon(IntArg(x)) / (1u)
+        x-> ribbon(x) / (1u)
+    else
+        # u is the defined input unit
+        #x::IntArg -> ribbon(x.val∙u)
+        x -> ribbon(x∙u)
+    end
+end
+
+
+function modified_ribbon(ribbon::T , serno, letter, u) where T
+    @info T
+    @info ribbon
+    error("This form of the ribbon argument is not implemented with quantity plots")
+end
+
+"""
+    ribbon_series(ribbon, serno)
+Extract the part of 'ribbon' structure that belongs to 'series' no,
+without evaluating - ribbon may be a function.
+
+This mimicks the way the 'ribbon' argument is interpreted by 'Plots.jl',
+although that would evaluate directly.
+"""
+function ribbon_series(ribbon::Tuple{S, T}, serno) where {S, T}
+    (ribbon_series(ribbon[1], serno), 
+    ribbon_series(ribbon[2], serno))
+end
+ribbon_series(ribbon, serno) = ribbon[serno]
+ribbon_series(ribbon::Matrix, serno) = ribbon_series[:, serno]
+ribbon_series(ribbon::Nothing, serno) = ribbon
+ribbon_series(ribbon::Number, serno) = ribbon
+ribbon_series(ribbon::Function, serno) = ribbon
+ribbon_series(ribbon::AbstractRange, serno) = ribbon
+
+##########################
+#  Print debug functions
+#  To use, call:
+#  RecipesBase.debug(true)
+##########################
 
 function print_prettyln(v::T) where T <: Vector{SeriesUnitInfo}
     headings =  string.(fieldnames(SeriesUnitInfo))
@@ -197,14 +243,15 @@ end
 function print_prettyln(attr::Plots.RecipesPipeline.DefaultsDict)
     println("    Explicit")
     print_prettyln(attr.explicit)
-    println("    Defaults")
-    print_prettyln(attr.defaults)
+    if length(keys(attr.defaults)) < 10
+        println("    Defaults")
+        print_prettyln(attr.defaults)
+    else
+        println("    Defaults (not shown, length $(length(keys(attr.defaults))))")
+    end
 end
 """
     cepad(s, n; p = ' ')
 centerpad string s within length n
 """
 cepad(s, n; p = ' ') = rpad(lpad(s,div(n + textwidth(string(s)), 2), p), n, p)
-
-
-

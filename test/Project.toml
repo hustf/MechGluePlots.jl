@@ -2,4 +2,5 @@
 MechGluePlots = "03a24088-0a82-4850-846f-2cad5d056ae1"
 MechanicalUnits = "e6be9192-89dc-11e9-36e6-5dbcb28f419e"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
 RecipesPipeline = "01d81517-befc-4cb6-b9ec-a95719d0359c"
