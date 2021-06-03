@@ -9,6 +9,7 @@ RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
 Unitfu = "5ee08b94-2369-4f4a-b8c7-99333ba35fb0"
 
 [compat]
+RecipesBase = "1"
 julia = "1"
 
 [extras]
