@@ -133,7 +133,7 @@ end
         vui  = accumulate_unit_info(vui, plotattributes, u, thisserno)
         # Numeric type
         nut = numtype(first(sx))
-        sux = map(nut, ustrip(x[:, colno] ./ u))
+        sux = map(nut, ustrip.(x[:, colno] ./ u))
         vals[:, colno] = sux
         if !isnothing(ribbon)
             modrib = modified_ribbon(colno == 1 ? ribbon : modrib, colno, letter, u)

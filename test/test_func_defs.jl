@@ -1,16 +1,8 @@
-import Plots.px
 using Test
 using MechanicalUnits
-using MechanicalUnits.Unitfu: DimensionError
 using Plots
 using MechGluePlots
-using Plots: default, px
-using RecipesBase
-using RecipesBase: debug
-using Plots
-using MechGluePlots: accumulate_unit_info, sertype
-using MechGluePlots: print_prettyln, SeriesUnitInfo
-
+using Plots: default
 default(width = 5)
 
 if !@isdefined vq
@@ -18,7 +10,6 @@ if !@isdefined vq
     vr = range(1, 3; step = 0.2)
     vq = range(1, 3; step = 0.2)s
     # Function_range_domain
-
     f_r_r(t)           = sin(0.3∙2π∙t)     ∙ 9.81
     f_q_q(t::Quantity) = sin(0.3∙2π∙t / s) ∙ 9.81N
     f_q_r(t::Quantity) = sin(0.3∙2π∙t / s)  ∙ 9.81
