@@ -21,22 +21,22 @@ function testplots(pref::String)
     @testset verbose = true "-1 One series" begin
         @testset "-1-1 One axis" begin
             @testset "-1-1-1 Unitless" begin
-                plot(vr)        ;_png()
-                plot(f_r_r)      ;_png(1)
-                plot(f_r_r, xlims = (-2, 2))           ;_png(2)
+                plot(vr)        ; _png()
+                plot(f_r_r)      ; _png(1)
+                plot(f_r_r, xlims = (-2, 2))           ; _png(2)
             @test true;end
             @testset "-1-1-2 Quantity" begin
                 plot(vq, guide = "Units are postfixed:")           ; _png()
                 plot(f_r_q)           ; _png(1)
-                plot(x-> f_q_q(x∙s))           ;_png(2)
-                plot(f_q_q, xlims = (-2, 2)s)           ;_png(3)
+                plot(x-> f_q_q(x∙s))           ; _png(2)
+                plot(f_q_q, xlims = (-2, 2)s)           ; _png(3)
             @test true;end
         end
         @testset "-1-2 Two axis" begin
             @testset "-1-2-1 Unitless" begin
                 plot(s1x, s1y)           ; _png()
                 plot(s1x, f_r_r) ; _png(1)
-                plot(f_r_r, s1x) ;_png(2)
+                plot(f_r_r, s1x) ; _png(2)
                 p = plot(s1x, s1y, (x,y ) -> f_r_r(x - y)) # f creates a Surface, not shown
                _png(3)
                 @test p[1][1][:x][1] == s1x[1]
@@ -45,7 +45,7 @@ function testplots(pref::String)
             @testset "-1-2-2 Quantity" begin
                 plot(s1x∙m, s1y∙s, xguide = "Units are postfixed:", yguide ="y axis") ; _png()
                 plot(s1x∙s, f_q_q) ; _png(1)
-                plot(f_q_q, s1x∙s) ;_png(2)
+                plot(f_q_q, s1x∙s) ; _png(2)
                 # Surfaces are type-checked to be Float64. User can create the surfaces on their own.
                 @test_throws TypeError plot(s1x∙s, s1y∙s, (x,y ) -> f_q_q(x - y))
             end
@@ -79,23 +79,23 @@ function testplots(pref::String)
                 # Lenient syntax
                 plot([f_r_r  x->f_r_r(2x)], xlims =(-2,2)) ; _png(1)
                 # Same plot
-                plot([f_r_r, x->f_r_r(2x)], xlims =(-2,2)) ;_png(2)
+                plot([f_r_r, x->f_r_r(2x)], xlims =(-2,2)) ; _png(2)
 
             @test true;end
             @testset "-2-1-2 Quantity" begin
-                plot(mxq) ;_png()
+                plot(mxq) ; _png()
                 # Lenient syntax
                 plot([f_q_q  x->f_q_q(2x)], xlims =(-2,2)s, ylims = (-10,5)N) ; _png(1)
                 # Same plot
-                plot([f_q_q, x->f_q_q(2x)], xlims =(-2,2)s, ylims = (-10,5)N) ;_png(2)
+                plot([f_q_q, x->f_q_q(2x)], xlims =(-2,2)s, ylims = (-10,5)N) ; _png(2)
 
             @test true;end
         end
         @testset "-2-2 Two axis" begin
             @testset "-2-2-1 Unitless" begin
                 plot(mxr, myr) ; _png()
-                plot(mxr, [f_r_r, x-> 0.8f_r_r(1.25x)]) ;_png(2)
-                plot([f_r_r , x-> 0.8f_r_r(1.25x)], myr) ;_png(3)
+                plot(mxr, [f_r_r, x-> 0.8f_r_r(1.25x)]) ; _png(2)
+                plot([f_r_r , x-> 0.8f_r_r(1.25x)], myr) ; _png(3)
                 p = plot(hcat(1:0.1:2, 5:0.1:6), [f_r_r, x-> 0.8f_r_r(1.25x)])
                _png(3)
                 @test p[1][1][:y][1] == f_r_r(1)
@@ -104,7 +104,7 @@ function testplots(pref::String)
             @testset "-2-2-2 Quantity" begin
                 plot(mxq, myq) ; _png()
                 plot(myq, [f_q_q, x-> 0.8f_q_q(1.25x)]) ; _png(1)
-                plot([f_q_q, x-> 0.8f_q_q(1.25x)], myq) ;_png(2)
+                plot([f_q_q, x-> 0.8f_q_q(1.25x)], myq) ; _png(2)
                 # We can't dispatch on this without also dispatching on unitless function mappings, which we won't do.
                 # An alternative would be type piracy on function expand_extrema!, which would be so bad.
                 @test_throws DimensionError p = plot(hcat(1:0.1:2, 5:0.1:6), [f_r_q, x-> 0.8f_r_q(1.25x)], xlims = (0,7))
@@ -112,14 +112,14 @@ function testplots(pref::String)
             @testset "-2-2-3 Quantity mixed units" begin
                 plot(mxqm, myqm) ; _png()
                 plot(myq, [f_q_q, x-> 0.8f_q_q(1.25x)∙m]) ; _png(1)
-                plot([f_q_q, x-> 0.8f_q_q(1.25x)∙m], myq) ;_png(2)
-                plot([x->f_q_q(x∙s/m), x-> 0.8f_q_q(1.25x∙s/m²)∙m], mxqm) ;_png(3)
+                plot([f_q_q, x-> 0.8f_q_q(1.25x)∙m], myq) ; _png(2)
+                plot([x->f_q_q(x∙s/m), x-> 0.8f_q_q(1.25x∙s/m²)∙m], mxqm) ; _png(3)
                 plot([x->f_q_q(x∙s/m)  x-> 0.8f_q_q(1.25x∙s/m²)∙m], mxqm,
                     xguide= "Load",
                     yguide = "Response",
                     xlims = (0, 1.1)m,
                     ylims = (0,10)m,
-                    framestyle = :origin) ;_png(4)
+                    framestyle = :origin) ; _png(4)
             end
         end
         @testset "-2-3 Three axis" begin
@@ -209,25 +209,28 @@ function testplots_ribbons(pref::String)
     @testset verbose = true "-2 Two series" begin
         @testset "-2-1 One axis" begin
             @testset "-2-1-1 Unitless" begin
-                plot(mxr, ribbon = [2 1]) ; _png()
-                plot(mxr, ribbon = [2 1; 1 0.5 ; 0.5 0.25; 0.03 0.1]) ; _png(1)
-                plot([f_r_r  x-> f_r_r(0.5x)], ribbon = [-1.5:0.15:1.15  -3.0:0.30:2.3 ]) ; _png(2)
-                plot([f_r_r  x-> f_r_r(0.5x)], ribbon = ([-15:1.5:11.5  -3.0:0.30:2.3 ], [-1.5:0.15:1.15  -15:1.5:11.5  ])) ; _png(3)
-                plot([f_r_r  x-> f_r_r(0.5x)], ribbon = x-> 0.2f_r_r(x)) ; _png(4)
-                plot([f_r_r, x-> f_r_r(0.5x)], ribbon = [x-> 0.1f_r_r(x), x-> 0.5f_r_r(x)]) ; _png(5)
+                plot(mxr, ribbon = [2 1])  ; _png()
+                plot(mxr, ribbon = [2 1; 1 0.5 ; 0.5 0.25; 0.03 0.1])  ; _png(1)
+                plot([f_r_r  x-> f_r_r(0.5x)], ribbon = [-1.5:0.15:1.15  -3.0:0.30:2.3 ])  ; _png(2)
+                plot([f_r_r  x-> f_r_r(0.5x)], ribbon = ([-15:1.5:11.5  -3.0:0.30:2.3 ], [-1.5:0.15:1.15  -15:1.5:11.5  ]))  ; _png(3)
+                plot([f_r_r  x-> f_r_r(0.5x)], ribbon = x-> 0.2f_r_r(x))  ; _png(4)
+                # the ribbon functions could be placed in a vector before. In Plots v1.34.4, ribbon functionseemingly have to
+                # be in a "row-vector", i.e. a one-row matrix.
+                @test_throws MethodError plot([f_r_r, x-> f_r_r(0.5x)], ribbon = [x-> 0.1f_r_r(x), x-> 0.5f_r_r(x)])  ; _png(5)
+                plot([f_r_r, x-> f_r_r(0.5x)], ribbon = [x-> 0.1f_r_r(x) x-> 0.5f_r_r(x)])  ; _png(6) 
             @test true;end
             @testset "-2-1-2 Quantity" begin
-                plot(mxq, ribbon = [2.0 1.0]m) ; _png()
-                plot(mxq, ribbon = [2 1; 1 0.5 ; 0.5 0.25; 0.03 0.1]m) ; _png(1)
+                plot(mxq, ribbon = [2.0 1.0]m)  ; _png()
+                plot(mxq, ribbon = [2 1; 1 0.5 ; 0.5 0.25; 0.03 0.1]m)  ; _png(1)
                 # With unknown abscissa, it is harder to implement unit conversions without
                 # also affecting other types of plots.
             @test true;end
         end
         @testset "-2-2 Two axis" begin
             @testset "-2-2-1 Unitless" begin
-                plot(mxr, myr, ribbon = [2 1]) ; _png()
-                plot(mxr, [f_r_r, x-> 0.8f_r_r(1.25x)], ribbon = [2 1; 1 0.5 ; 0.5 0.25; 0.03 0.1]) ; _png(1)
-                plot([f_r_r , x-> 0.8f_r_r(1.25x)], myr, ribbon = [1.5:-0.55:-1.15  15:-5.5:-11.5 ]) ; _png(2)
+                plot(mxr, myr, ribbon = [2 1])  ; _png()
+                plot(mxr, [f_r_r, x-> 0.8f_r_r(1.25x)], ribbon = [2 1; 1 0.5 ; 0.5 0.25; 0.03 0.1])  ; _png(1)
+                plot([f_r_r , x-> 0.8f_r_r(1.25x)], myr, ribbon = [1.5:-0.55:-1.15  15:-5.5:-11.5 ])  ; _png(2)
                 p = plot(hcat(1:0.1:3, 3:0.1:5),
                     [f_r_r, x-> 0.8f_r_r(1.25x)],
                     ribbon = ([s_1_down  s_2_down], [s_1_up  s_2_up]),
@@ -235,13 +238,17 @@ function testplots_ribbons(pref::String)
                 _png(3)
                 @test p[1][1][:y][1] == f_r_r(1)
                 @test p[1][2][:y][1] == 0.8f_r_r(1.25 * 3)
+                # the ribbon functions could be placed in a vector before. In Plots v1.34.4, ribbon functionseemingly have to
+                # be in a "row-vector", i.e. a one-row matrix.
+                @test_throws MethodError plot( xlims =(-5, 5), [f_r_r, x-> 0.5f_r_r(1.5x)],
+                        ribbon = [x-> f_r_r(0.25x), x-> f_r_r(0.5x)]) ; _png(4)
                 plot( xlims =(-5, 5), [f_r_r, x-> 0.5f_r_r(1.5x)],
-                        ribbon = [x-> f_r_r(0.25x), x-> f_r_r(0.5x)]); _png(4)
+                        ribbon = [x-> f_r_r(0.25x)  x-> f_r_r(0.5x)]) ; _png(4)
             end
             @testset "-2-2-2 Quantity" begin
-                plot(mxq, myq, ribbon = [2 1]s) ; _png()
-                plot(mxq, [x->f_q_q(x∙s/m), x-> 0.8f_q_q(1.25x∙s/m)], ribbon = [2 1; 1 0.5 ; 0.5 0.25; 0.03 0.1]N) ; _png(1)
-                plot([x-> f_q_q(x) , x-> 0.8f_q_q(1.25x)], myq, ribbon = [1.5:-0.55:-1.15  15:-5.5:-11.5 ]N); _png(2)
+                plot(mxq, myq, ribbon = [2 1]s)  ; _png()
+                plot(mxq, [x->f_q_q(x∙s/m), x-> 0.8f_q_q(1.25x∙s/m)], ribbon = [2 1; 1 0.5 ; 0.5 0.25; 0.03 0.1]N)  ; _png(1)
+                plot([x-> f_q_q(x) , x-> 0.8f_q_q(1.25x)], myq, ribbon = [1.5:-0.55:-1.15  15:-5.5:-11.5 ]N) ; _png(2)
                 p = plot(hcat(1:0.1:3, 3:0.1:5)s,
                     [f_q_q, x-> 0.8f_q_q(1.25x)],
                     ribbon = ([s_1_down  s_2_down]N, [s_1_up  s_2_up]N),
@@ -252,28 +259,28 @@ function testplots_ribbons(pref::String)
                 # We can't dispatch on this without also dispatching on unitless function mappings, which we won't do.
                 @test_throws DimensionError p = plot(hcat(1:0.1:2, 5:0.1:6), [f_r_q, x-> 0.8f_r_q(1.25x)], xlims = (0,7))
                 plot( xlims =(-5s, 5s), [f_q_q, x-> 0.5f_q_q(1.5x)],
-                     ribbon = [x-> f_q_q(0.25x), x-> f_q_q(0.5x)]); _png(4)
+                     ribbon = [x-> f_q_q(0.25x), x-> f_q_q(0.5x)]) ; _png(4)
             end
             @testset "-2-2-3 Quantity mixed units" begin
-                plot(mxqm, myqm, ribbon = [2s 1s²], xguide = "Several units, postfixed:", yguide = "Other units, postfixed:") ; _png()
-                plot(myq, [f_q_q, x-> 0.8f_q_q(1.25x)∙m], ribbon = [2N 1N∙m]) ; _png(1)
-                plot([f_q_q, x-> 0.8f_q_q(1.25x)∙m], myq, ribbon = [2N 1N∙m]) ; _png(2)
+                plot(mxqm, myqm, ribbon = [2s 1s²], xguide = "Several units, postfixed:", yguide = "Other units, postfixed:")  ; _png()
+                plot(myq, [f_q_q, x-> 0.8f_q_q(1.25x)∙m], ribbon = [2N 1N∙m])  ; _png(1)
+                plot([f_q_q, x-> 0.8f_q_q(1.25x)∙m], myq, ribbon = [2N 1N∙m])  ; _png(2)
                 p = plot(hcat(1:0.1:3, 3:0.1:5)s,
                     [f_q_q, x-> 0.8f_q_q(1.25x)],
                     ribbon = ([s_1_down  s_2_down]N, [s_1_up  s_2_up]N),
                     labels = ["s_1" "s_2"])
                 @test p[1][1][:y][1]N == f_q_q(1s)
                 @test p[1][2][:y][1]N == 0.8f_q_q(1.25 * 3s)
-                plot(myq, [f_q_q, x-> 0.8f_q_q(1.25x)∙m],  ribbon = [2N 1N∙m]) ; _png(2)
+                plot(myq, [f_q_q, x-> 0.8f_q_q(1.25x)∙m],  ribbon = [2N 1N∙m])  ; _png(2)
                 plot([x->f_q_q(x∙s/m), x-> 0.8f_q_q(1.25x∙s/m²)s], mxqm,
-                    ribbon = ([s_1_down∙N s_2_down∙N∙s], [s_1_up∙N  s_2_up∙N∙s])) ;_png(3)
+                    ribbon = ([s_1_down∙N s_2_down∙N∙s], [s_1_up∙N  s_2_up∙N∙s]))  ; _png(3)
                 plot( xlims =(-5s, 5s), [f_q_q, x-> 0.5f_q_q(1.5x)∙m],
                     ribbon = [x-> f_q_q(0.25x), x-> 0.5∙f_q_q(0.5x)∙m],
-                    yguide = "Load", xguide = "Time"); _png(4)
+                    yguide = "Load", xguide = "Time") ; _png(4)
                 plot( xlims =(-5s, 5s),
                      [f_q_q  x-> 0.5f_q_q(1.5x)∙m],
                     ribbon = ([s_1_down∙N  s_2_down∙N∙m], [s_1_up∙N   s_2_up∙N∙m]),
-                    yguide = "Load", xguide = "Time"); _png(5)
+                    yguide = "Load", xguide = "Time") ; _png(5)
             end
         end
     end

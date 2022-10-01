@@ -181,11 +181,10 @@ function modified_ribbon(ribbon::T , serno, letter, u) where T<:Vector
         _modified_ribbon(ribbon, u)
     end
 end
-# Never hit during tests
-function modified_ribbon(ribbon::T , serno, letter, u) where T
-    @info T
-    @info ribbon
-    error("This form of the ribbon argument is not implemented with quantity plots")
+# Never hit during tests. Might trigger failing precompilation of undefined units in Unitfu.
+function modified_ribbon(ribbon, serno, letter, u)
+   @info ribbon
+   error("This form of the ribbon argument is not implemented with quantity plots")
 end
 
 """
